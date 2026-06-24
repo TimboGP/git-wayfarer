@@ -43,13 +43,19 @@ keyboard.
 
 ## Install
 
-Build from source (produces a `wayfarer` binary):
+**Homebrew:**
+
+```sh
+brew install osleff/tap/wayfarer
+```
+
+**Build from source** (produces a `wayfarer` binary):
 
 ```sh
 go build -o wayfarer .
 ```
 
-Or install with `go install`:
+**`go install`:**
 
 ```sh
 go install github.com/osleff/wayfarer@latest
@@ -108,4 +114,32 @@ Gloss.
 ```sh
 go test ./...     # unit + integration + headless UI tests
 go vet ./...
+```
+
+CI (`.github/workflows/ci.yml`) runs vet, tests, and build on every push and PR.
+
+## Releasing
+
+Releases are automated with [GoReleaser](https://goreleaser.com) on tag push
+(`.github/workflows/release.yml`), which builds cross-platform archives and
+updates the Homebrew formula.
+
+One-time setup:
+
+1. Create a public tap repo `github.com/osleff/homebrew-tap`.
+2. Add a repo secret `HOMEBREW_TAP_GITHUB_TOKEN` — a PAT with `contents:write`
+   on the tap repo (the default `GITHUB_TOKEN` can't push to another repo).
+
+Then cut a release:
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Validate the config locally (optional, needs the `goreleaser` CLI):
+
+```sh
+goreleaser check
+goreleaser release --snapshot --clean   # dry run, no publish
 ```

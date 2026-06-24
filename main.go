@@ -13,7 +13,12 @@ import (
 	"github.com/osleff/wayfarer/internal/ui"
 )
 
-const version = "0.1.0"
+// Build-time metadata, injected by GoReleaser via -ldflags (see .goreleaser.yaml).
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
 
 func main() {
 	var (
@@ -28,7 +33,7 @@ func main() {
 	flag.Parse()
 
 	if showVer {
-		fmt.Println("wayfarer", version)
+		fmt.Printf("wayfarer %s (commit %s, built %s)\n", version, commit, date)
 		return
 	}
 
