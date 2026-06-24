@@ -11,9 +11,10 @@ type keyMap struct {
 	Top      key.Binding
 	Bottom   key.Binding
 
-	Tab   key.Binding
-	Enter key.Binding
-	Mark  key.Binding
+	Tab    key.Binding
+	Enter  key.Binding
+	Mark   key.Binding
+	Search key.Binding
 
 	Branches  key.Binding
 	Worktrees key.Binding
@@ -36,9 +37,10 @@ func defaultKeys() keyMap {
 		Top:      key.NewBinding(key.WithKeys("g", "home"), key.WithHelp("g", "top")),
 		Bottom:   key.NewBinding(key.WithKeys("G", "end"), key.WithHelp("G", "bottom")),
 
-		Tab:   key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "switch pane")),
-		Enter: key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "select")),
-		Mark:  key.NewBinding(key.WithKeys("v"), key.WithHelp("v", "mark A/B")),
+		Tab:    key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "switch pane")),
+		Enter:  key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "details")),
+		Mark:   key.NewBinding(key.WithKeys("v"), key.WithHelp("v", "mark A/B")),
+		Search: key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search")),
 
 		Branches:  key.NewBinding(key.WithKeys("b"), key.WithHelp("b", "branches")),
 		Worktrees: key.NewBinding(key.WithKeys("w"), key.WithHelp("w", "worktrees")),
@@ -55,14 +57,14 @@ func defaultKeys() keyMap {
 
 // ShortHelp implements help.KeyMap.
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.Tab, k.Mark, k.Branches, k.Worktrees, k.Help, k.Quit}
+	return []key.Binding{k.Up, k.Down, k.Tab, k.Enter, k.Search, k.Mark, k.Branches, k.Worktrees, k.Help, k.Quit}
 }
 
 // FullHelp implements help.KeyMap.
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.Top, k.Bottom},
-		{k.Tab, k.Enter, k.Mark, k.Refresh},
+		{k.Tab, k.Enter, k.Mark, k.Search, k.Refresh},
 		{k.Branches, k.Worktrees, k.Checkout, k.Add, k.Delete},
 		{k.Help, k.Esc, k.Quit},
 	}

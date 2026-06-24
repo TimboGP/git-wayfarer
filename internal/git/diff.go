@@ -1,102 +1,104 @@
 package git
 
 import (
+	"strings"
+
 	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/go-git/go-git/v5/utils/merkletrie"
 )
 
 // FileChange describes a single changed path between two trees.
 type FileChange struct {
 	Path    string // current path (or old path for deletions)
 	OldPath string // populated for renames/copies
-	Status  string // A, M, D, R
+	Status  string // A, M, D, R, C, T
+}
+
+// base resolves the diff base for a commit: its first parent, or the empty tree
+// for a root commit.
+func (r *Repo) base(hash string) (string, error) {
+	c, err := r.repo.CommitObject(plumbing.NewHash(hash))
+	if err != nil {
+		return "", err
+	}
+	if c.NumParents() > 0 {
+		return c.ParentHashes[0].String(), nil
+	}
+	return emptyTree, nil
 }
 
 // ChangedFiles returns the files changed by a commit relative to its first
-// parent (or the empty tree for a root commit).
+// parent (or the empty tree for a root commit), with rename detection.
 func (r *Repo) ChangedFiles(hash string) ([]FileChange, error) {
-	c, err := r.repo.CommitObject(plumbing.NewHash(hash))
+	base, err := r.base(hash)
 	if err != nil {
 		return nil, err
 	}
-	to, err := c.Tree()
-	if err != nil {
-		return nil, err
-	}
-
-	var from *object.Tree
-	if c.NumParents() > 0 {
-		p, err := c.Parent(0)
-		if err != nil {
-			return nil, err
-		}
-		if from, err = p.Tree(); err != nil {
-			return nil, err
-		}
-	}
-
-	return treeChanges(from, to)
+	return r.changedFilesDiff(base, hash)
 }
 
 // ChangedFilesRange returns the files that differ between commits a and b
-// (the diff a..b).
+// (the diff a..b), with rename detection.
 func (r *Repo) ChangedFilesRange(a, b string) ([]FileChange, error) {
-	from, err := r.commitTree(a)
-	if err != nil {
-		return nil, err
-	}
-	to, err := r.commitTree(b)
-	if err != nil {
-		return nil, err
-	}
-	return treeChanges(from, to)
+	return r.changedFilesDiff(a, b)
 }
 
-func (r *Repo) commitTree(rev string) (*object.Tree, error) {
-	h, err := r.repo.ResolveRevision(plumbing.Revision(rev))
+// changedFilesDiff shells out to git for an accurate name-status listing
+// (go-git's tree diff cannot detect renames).
+func (r *Repo) changedFilesDiff(base, target string) ([]FileChange, error) {
+	out, err := r.runGit("diff", "--name-status", "--find-renames", base, target)
 	if err != nil {
 		return nil, err
 	}
-	c, err := r.repo.CommitObject(*h)
-	if err != nil {
-		return nil, err
-	}
-	return c.Tree()
+	return parseNameStatus(out), nil
 }
 
-func treeChanges(from, to *object.Tree) ([]FileChange, error) {
-	if from == nil {
-		from = &object.Tree{}
-	}
-	changes, err := from.Diff(to)
-	if err != nil {
-		return nil, err
-	}
-
-	out := make([]FileChange, 0, len(changes))
-	for _, ch := range changes {
-		action, err := ch.Action()
-		if err != nil {
-			return nil, err
+// parseNameStatus parses `git diff --name-status -M` output. Lines are
+// tab-separated: "M\tpath", "A\tpath", "D\tpath", or "R100\told\tnew".
+func parseNameStatus(out string) []FileChange {
+	var files []FileChange
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimRight(line, "\r")
+		if line == "" {
+			continue
+		}
+		fields := strings.Split(line, "\t")
+		if len(fields) < 2 || fields[0] == "" {
+			continue
 		}
 		fc := FileChange{}
-		switch action {
-		case merkletrie.Insert:
-			fc.Status = "A"
-			fc.Path = ch.To.Name
-		case merkletrie.Delete:
-			fc.Status = "D"
-			fc.Path = ch.From.Name
-		case merkletrie.Modify:
-			fc.Status = "M"
-			fc.Path = ch.To.Name
-			if ch.From.Name != ch.To.Name {
-				fc.Status = "R"
-				fc.OldPath = ch.From.Name
+		switch fields[0][0] {
+		case 'A':
+			fc.Status, fc.Path = "A", fields[1]
+		case 'D':
+			fc.Status, fc.Path = "D", fields[1]
+		case 'R':
+			if len(fields) >= 3 {
+				fc.Status, fc.OldPath, fc.Path = "R", fields[1], fields[2]
+			} else {
+				fc.Status, fc.Path = "R", fields[1]
 			}
+		case 'C':
+			if len(fields) >= 3 {
+				fc.Status, fc.OldPath, fc.Path = "C", fields[1], fields[2]
+			} else {
+				fc.Status, fc.Path = "C", fields[1]
+			}
+		case 'T': // type change (e.g. file <-> symlink)
+			fc.Status, fc.Path = "M", fields[1]
+		default: // M and anything else
+			fc.Status, fc.Path = "M", fields[1]
 		}
-		out = append(out, fc)
+		files = append(files, fc)
 	}
-	return out, nil
+	return files
+}
+
+// CommitStat returns the `git diff --stat` summary for a commit relative to its
+// first parent, used in the commit detail view.
+func (r *Repo) CommitStat(hash string) (string, error) {
+	base, err := r.base(hash)
+	if err != nil {
+		return "", err
+	}
+	return r.runGit("diff", "--stat", "--find-renames", base, hash)
 }

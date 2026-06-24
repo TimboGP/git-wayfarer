@@ -130,6 +130,65 @@ func TestTabCyclesFocus(t *testing.T) {
 	}
 }
 
+func TestSearchFiltersCommits(t *testing.T) {
+	repo, err := git.Open(newTestRepo(t), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := drive(t, New(repo, false, ""), tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	m, _ = updateModel(m, keyPress("/"))
+	if !m.searching {
+		t.Fatal("expected search mode after /")
+	}
+	for _, ch := range []string{"s", "e", "c", "o", "n", "d"} {
+		m, _ = updateModel(m, keyPress(ch))
+	}
+	if m.searchQuery != "second" {
+		t.Fatalf("query = %q, want second", m.searchQuery)
+	}
+	if len(m.visible) != 1 || m.visible[0].Subject != "second commit" {
+		t.Fatalf("visible = %d (%+v), want 1 (second commit)", len(m.visible), m.visible)
+	}
+
+	m, _ = updateModel(m, keyPress("enter"))
+	if m.searching {
+		t.Error("still in search mode after enter")
+	}
+	if !strings.Contains(m.View().Content, "Commits (1/2)") {
+		t.Errorf("view missing filtered count:\n%s", m.View().Content)
+	}
+
+	m, _ = updateModel(m, keyPress("esc"))
+	if m.searchQuery != "" || len(m.visible) != 2 {
+		t.Errorf("esc did not clear filter: query=%q visible=%d", m.searchQuery, len(m.visible))
+	}
+}
+
+func TestCommitDetailOverlay(t *testing.T) {
+	repo, err := git.Open(newTestRepo(t), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := drive(t, New(repo, false, ""), tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	m, _ = updateModel(m, keyPress("enter"))
+	if m.overlay != ovDetail {
+		t.Fatalf("overlay = %v, want ovDetail", m.overlay)
+	}
+	content := m.View().Content
+	for _, want := range []string{"commit ", "Author:", "test@example.com", "second commit"} {
+		if !strings.Contains(content, want) {
+			t.Errorf("detail view missing %q", want)
+		}
+	}
+
+	m, _ = updateModel(m, keyPress("esc"))
+	if m.overlay != ovNone {
+		t.Error("detail overlay did not close on esc")
+	}
+}
+
 func updateModel(m Model, msg tea.Msg) (Model, tea.Cmd) {
 	model, cmd := m.Update(msg)
 	return model.(Model), cmd

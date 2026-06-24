@@ -16,7 +16,7 @@ func (r *Repo) RenderDiff(base, target, file string, width int) (string, error) 
 	if base == "" {
 		base = emptyTree
 	}
-	gitArgs := []string{"diff", base, target}
+	gitArgs := []string{"diff", "--find-renames", base, target}
 	if file != "" {
 		gitArgs = append(gitArgs, "--", file)
 	}

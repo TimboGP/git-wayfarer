@@ -24,7 +24,11 @@ keyboard.
 - **Walk history** commit by commit with `git log`-style decoration (HEAD,
   branches, tags) on each entry.
 - **Inspect changes** for the selected commit (vs. its first parent), per file
-  or as one overall diff.
+  or as one overall diff — with rename detection (`R old → new`).
+- **Commit detail view** — press `enter` for the full message, author/date,
+  parents, refs, and diffstat in a scrollable overlay.
+- **Search history** — press `/` to live-filter commits by subject, author, or
+  hash.
 - **Compare changesets** — mark commit `A`, move, mark commit `B`, and view the
   full `A..B` range diff.
 - **Switch branches** non-destructively (re-point the view to inspect another
@@ -71,7 +75,8 @@ githist --version
 | `↑`/`k`, `↓`/`j` | move within the focused pane |
 | `pgup`/`pgdn`, `g`/`G` | page / jump to top / bottom |
 | `tab` | cycle focus: commits → changes → diff |
-| `enter` | select a file to scope the diff (in the changes pane) |
+| `enter` | show full commit details (message, diffstat) |
+| `/` | search / filter commits by subject, author, or hash |
 | `v` | mark commit `A`, then `B`, to compare a range (`esc` clears) |
 | `b` | open the branches overlay (`enter` inspect · `c` checkout) |
 | `w` | open the worktrees overlay (`enter` open · `a` add · `d` remove) |

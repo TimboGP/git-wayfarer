@@ -55,10 +55,9 @@ func (m Model) onCommitsLoaded(msg commitsLoadedMsg) (tea.Model, tea.Cmd) {
 	m.commits = msg.commits
 	m.rev = msg.rev
 	m.markA, m.markB = "", ""
-	m.commitList.setCount(len(m.commits))
-	m.commitList.cursor = 0
-	m.commitList.offset = 0
-	m.bindCommitRender()
+	m.searching = false
+	m.searchQuery = ""
+	m.applyFilter() // sets visible, count, cursor, and rebinds the renderer
 	return m, m.onSelectionChanged()
 }
 
@@ -76,6 +75,9 @@ func (m Model) onActionDone(msg actionDoneMsg) (tea.Model, tea.Cmd) {
 // ---- key routing ----
 
 func (m Model) onKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if m.searching {
+		return m.searchKey(msg)
+	}
 	switch m.overlay {
 	case ovInput:
 		return m.inputKey(msg)
@@ -85,6 +87,8 @@ func (m Model) onKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.branchKey(msg)
 	case ovWorktrees:
 		return m.worktreeKey(msg)
+	case ovDetail:
+		return m.detailKey(msg)
 	case ovHelp:
 		if key.Matches(msg, m.keys.Esc, m.keys.Help, m.keys.Quit) {
 			m.overlay = ovNone
@@ -113,10 +117,21 @@ func (m Model) mainKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, loadCommitsCmd(m.repo, m.rev)
 	case key.Matches(msg, m.keys.Mark):
 		return m.toggleMark()
+	case key.Matches(msg, m.keys.Search):
+		m.searching = true
+		m.setStatus("")
+		return m, nil
+	case key.Matches(msg, m.keys.Enter):
+		return m.openDetail()
 	case key.Matches(msg, m.keys.Esc):
 		if m.markA != "" || m.markB != "" {
 			m.markA, m.markB = "", ""
 			m.bindCommitRender()
+			return m, m.onSelectionChanged()
+		}
+		if m.searchQuery != "" {
+			m.searchQuery = ""
+			m.applyFilter()
 			return m, m.onSelectionChanged()
 		}
 		return m, nil
@@ -380,6 +395,74 @@ func (m Model) inputKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
+}
+
+// ---- search ----
+
+func (m Model) searchKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch {
+	case key.Matches(msg, m.keys.Enter):
+		m.searching = false
+		if m.searchQuery == "" {
+			return m, nil
+		}
+		if len(m.visible) == 0 {
+			m.setStatus("no matches for /" + m.searchQuery)
+		} else {
+			m.setStatus(fmt.Sprintf("%d match(es) — esc to clear", len(m.visible)))
+		}
+		return m, nil
+	case key.Matches(msg, m.keys.Esc):
+		m.searching = false
+		had := m.searchQuery != ""
+		m.searchQuery = ""
+		m.applyFilter()
+		if had {
+			return m, m.onSelectionChanged()
+		}
+		return m, nil
+	case msg.String() == "backspace":
+		if m.searchQuery == "" {
+			return m, nil
+		}
+		r := []rune(m.searchQuery)
+		m.searchQuery = string(r[:len(r)-1])
+		m.applyFilter()
+		return m, m.onSelectionChanged()
+	default:
+		if t := msg.Key().Text; t != "" {
+			m.searchQuery += t
+			m.applyFilter()
+			return m, m.onSelectionChanged()
+		}
+		return m, nil
+	}
+}
+
+// ---- commit detail overlay ----
+
+func (m Model) openDetail() (tea.Model, tea.Cmd) {
+	c := m.currentCommit()
+	if c == nil {
+		return m, nil
+	}
+	w, h := detailSize(m.width, m.height)
+	m.detailVp.SetWidth(w)
+	m.detailVp.SetHeight(h)
+	m.detailVp.SetContent(m.buildDetail(c))
+	m.detailVp.GotoTop()
+	m.overlay = ovDetail
+	return m, nil
+}
+
+func (m Model) detailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if key.Matches(msg, m.keys.Esc, m.keys.Quit, m.keys.Enter) {
+		m.overlay = ovNone
+		return m, nil
+	}
+	var cmd tea.Cmd
+	m.detailVp, cmd = m.detailVp.Update(msg)
+	return m, cmd
 }
 
 func overlayListW(screenW int) int {

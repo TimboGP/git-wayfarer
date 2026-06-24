@@ -30,6 +30,7 @@ const (
 	ovHelp
 	ovConfirm
 	ovInput
+	ovDetail
 )
 
 // Model is the root Bubble Tea model.
@@ -47,9 +48,14 @@ type Model struct {
 	diffWidth     int
 
 	// history view
-	rev        string // current view revision ("" = HEAD)
-	commits    []git.Commit
+	rev        string       // current view revision ("" = HEAD)
+	commits    []git.Commit // all loaded commits
+	visible    []git.Commit // commits passing the active search filter
 	commitList scrollList
+
+	// search/filter over commits
+	searching   bool
+	searchQuery string
 
 	// changed files for current selection (Overall is index 0)
 	files    []git.FileChange
@@ -59,6 +65,9 @@ type Model struct {
 	vp          viewport.Model
 	diffToken   int
 	loadingDiff bool
+
+	// commit detail overlay
+	detailVp viewport.Model
 
 	focus focusArea
 
@@ -93,6 +102,7 @@ func New(repo *git.Repo, useDelta bool, rev string) Model {
 		useDelta:   useDelta,
 		rev:        rev,
 		vp:         viewport.New(),
+		detailVp:   viewport.New(),
 		help:       help.New(),
 		keys:       defaultKeys(),
 		commitList: scrollList{focused: true},
@@ -110,10 +120,34 @@ func (m Model) compareMode() bool { return m.markA != "" && m.markB != "" }
 
 func (m Model) currentCommit() *git.Commit {
 	i := m.commitList.cursor
-	if i >= 0 && i < len(m.commits) {
-		return &m.commits[i]
+	if i >= 0 && i < len(m.visible) {
+		return &m.visible[i]
 	}
 	return nil
+}
+
+// applyFilter recomputes the visible commit slice from the active search query
+// (matching subject, author, or hash, case-insensitively) and resets the
+// cursor to the first match.
+func (m *Model) applyFilter() {
+	if m.searchQuery == "" {
+		m.visible = m.commits
+	} else {
+		q := strings.ToLower(m.searchQuery)
+		out := make([]git.Commit, 0, len(m.commits))
+		for _, c := range m.commits {
+			if strings.Contains(strings.ToLower(c.Subject), q) ||
+				strings.Contains(strings.ToLower(c.Author), q) ||
+				strings.Contains(strings.ToLower(c.Hash), q) {
+				out = append(out, c)
+			}
+		}
+		m.visible = out
+	}
+	m.commitList.setCount(len(m.visible))
+	m.commitList.cursor = 0
+	m.commitList.offset = 0
+	m.bindCommitRender()
 }
 
 // diffParams computes the diff endpoints for the current selection.
@@ -139,7 +173,7 @@ func (m *Model) setStatus(s string) { m.status = s; m.statusErr = false }
 
 // bind* (re)attach render closures that capture current data/marks.
 func (m *Model) bindCommitRender() {
-	commits, markA, markB := m.commits, m.markA, m.markB
+	commits, markA, markB := m.visible, m.markA, m.markB
 	m.commitList.render = func(i int, selected, focused bool, width int) string {
 		return renderCommitLine(commits[i], markA, markB, selected, focused, width)
 	}
@@ -296,6 +330,8 @@ func (m Model) View() tea.View {
 	case ovInput:
 		body := m.input.view() + "\n\n" + mutedStyle.Render("[enter] ok    [esc] cancel")
 		screen = overlayBox("Input", body, m.width, m.height)
+	case ovDetail:
+		screen = overlayBox("Commit  ·  ↑/↓ scroll · esc close", m.detailVp.View(), m.width, m.height)
 	}
 
 	v := tea.NewView(screen)
@@ -315,6 +351,10 @@ func (m Model) headerView() string {
 	if m.compareMode() {
 		seg = append(seg, lipgloss.NewStyle().Foreground(colMarkA).Bold(true).
 			Render(fmt.Sprintf("COMPARE %s..%s", short(m.markA), short(m.markB))))
+	}
+	if m.searchQuery != "" {
+		seg = append(seg, lipgloss.NewStyle().Foreground(colTitle).
+			Render(fmt.Sprintf("/%s (%d)", m.searchQuery, len(m.visible))))
 	}
 	if m.useDelta {
 		seg = append(seg, mutedStyle.Render("delta"))
@@ -337,7 +377,11 @@ func (m Model) headerView() string {
 }
 
 func (m Model) mainView() string {
-	commitBox := paneBox(fmt.Sprintf("Commits (%d)", len(m.commits)),
+	commitTitle := fmt.Sprintf("Commits (%d)", len(m.visible))
+	if m.searchQuery != "" {
+		commitTitle = fmt.Sprintf("Commits (%d/%d)", len(m.visible), len(m.commits))
+	}
+	commitBox := paneBox(commitTitle,
 		m.commitList.view(), m.leftW, m.contentH, m.focus == focusCommits)
 
 	fileTitle := "Changes"
@@ -367,5 +411,55 @@ func (m Model) mainView() string {
 }
 
 func (m Model) footerView() string {
+	if m.searching {
+		bar := lipgloss.NewStyle().Foreground(colTitle).Render("/") + m.searchQuery + "█"
+		return bar + mutedStyle.Render("    enter: keep · esc: clear")
+	}
 	return m.help.View(m.keys)
+}
+
+// buildDetail formats the full metadata, message, and diffstat for a commit.
+func (m Model) buildDetail(c *git.Commit) string {
+	var b strings.Builder
+	b.WriteString(hashStyle.Render("commit " + c.Hash))
+	b.WriteByte('\n')
+	if len(c.Parents) > 0 {
+		parents := make([]string, len(c.Parents))
+		for i, p := range c.Parents {
+			parents[i] = short(p)
+		}
+		b.WriteString(mutedStyle.Render("Parent:  ") + strings.Join(parents, " ") + "\n")
+	}
+	if refs := plainRefs(c.Refs); refs != "" {
+		b.WriteString(mutedStyle.Render("Refs:    ") + refs + "\n")
+	}
+	b.WriteString(mutedStyle.Render("Author:  ") + c.Author + " <" + c.Email + ">\n")
+	b.WriteString(mutedStyle.Render("Date:    ") + c.When.Format("Mon Jan 2 15:04:05 2006 -0700") + "\n\n")
+	b.WriteString(titleStyle.Render(c.Subject) + "\n")
+	if c.Body != "" {
+		b.WriteString("\n" + c.Body + "\n")
+	}
+	if stat, err := m.repo.CommitStat(c.Hash); err == nil && strings.TrimSpace(stat) != "" {
+		b.WriteString("\n" + mutedStyle.Render(strings.TrimRight(stat, "\n")))
+	}
+	return b.String()
+}
+
+// detailSize returns the inner content size for the commit detail viewport.
+func detailSize(screenW, screenH int) (w, h int) {
+	w = screenW - 16
+	if w > 90 {
+		w = 90
+	}
+	if w < 20 {
+		w = 20
+	}
+	h = screenH - 8
+	if h > 30 {
+		h = 30
+	}
+	if h < 5 {
+		h = 5
+	}
+	return w, h
 }
