@@ -189,6 +189,77 @@ func TestCommitDetailOverlay(t *testing.T) {
 	}
 }
 
+func TestWorkingAndStagedRows(t *testing.T) {
+	dir := newTestRepo(t)
+	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("unstaged edit\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "b.txt"), []byte("staged edit\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("git", "add", "b.txt")
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git add: %s", out)
+	}
+
+	repo, err := git.Open(dir, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := drive(t, New(repo, false, ""), tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	if m.statusCount() != 2 {
+		t.Fatalf("statusCount = %d, want 2 (working + staged)", m.statusCount())
+	}
+	content := m.View().Content
+	for _, want := range []string{"Working tree", "Staged"} {
+		if !strings.Contains(content, want) {
+			t.Errorf("view missing %q row:\n%s", want, content)
+		}
+	}
+
+	// Default selection is HEAD (first commit), not a status row.
+	if _, ok := m.selectedStatus(); ok {
+		t.Error("default selection should be a commit, not a status row")
+	}
+
+	// Move up onto the staged row, then the working row, and confirm the file
+	// list reflects the staged/unstaged change.
+	m, _ = updateModel(m, keyPress("k")) // staged (index 1)
+	if st, ok := m.selectedStatus(); !ok || st.kind != stStaged {
+		t.Fatalf("expected staged row selected, got ok=%v", ok)
+	}
+	if sf := fileNames(m.files); !contains(sf, "b.txt") {
+		t.Errorf("staged files = %v, want b.txt", sf)
+	}
+
+	m, _ = updateModel(m, keyPress("k")) // working (index 0)
+	if st, ok := m.selectedStatus(); !ok || st.kind != stWorking {
+		t.Fatalf("expected working row selected, got ok=%v", ok)
+	}
+	if wf := fileNames(m.files); !contains(wf, "a.txt") {
+		t.Errorf("working files = %v, want a.txt", wf)
+	}
+}
+
+func fileNames(files []git.FileChange) []string {
+	out := make([]string, len(files))
+	for i, f := range files {
+		out[i] = f.Path
+	}
+	return out
+}
+
+func contains(s []string, v string) bool {
+	for _, x := range s {
+		if x == v {
+			return true
+		}
+	}
+	return false
+}
+
 func updateModel(m Model, msg tea.Msg) (Model, tea.Cmd) {
 	model, cmd := m.Update(msg)
 	return model.(Model), cmd

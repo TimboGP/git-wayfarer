@@ -27,6 +27,10 @@ keyboard.
   merge nodes (`◆`) next to the log; toggle with `t`.
 - **Inspect changes** for the selected commit (vs. its first parent), per file
   or as one overall diff — with rename detection (`R old → new`).
+- **Inspect uncommitted changes** — synthetic *Working tree* (unstaged +
+  untracked) and *Staged* rows appear at the top of the log; select them to see
+  the working/staged diff, per file or overall. Press `r` to refresh after
+  staging.
 - **Commit detail view** — press `enter` for the full message, author/date,
   parents, refs, and diffstat in a scrollable overlay.
 - **Search history** — press `/` to live-filter commits by subject, author, or

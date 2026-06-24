@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"fmt"
+	"image/color"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -83,6 +85,28 @@ func renderCommitLine(c git.Commit, graph, markA, markB string, selected, focuse
 	}
 	return graph + mark + " " + hashStyle.Render(c.Short) + " " + body +
 		strings.Repeat(" ", pad) + mutedStyle.Render(age)
+}
+
+// renderStatusLine renders a synthetic working/staged row. pad keeps the text
+// aligned under the commit-graph column when it is shown.
+func renderStatusLine(st statusRow, pad string, selected, focused bool, width int) string {
+	var icon, label string
+	var c color.Color
+	switch st.kind {
+	case stStaged:
+		icon, label, c = "✓", "Staged", colAdd
+	default:
+		icon, label, c = "✱", "Working tree", colMod
+	}
+	text := fmt.Sprintf("%s %s (%d)", icon, label, st.count)
+	innerW := width - runeLen(pad)
+	if innerW < 1 {
+		innerW = 1
+	}
+	if selected {
+		return pad + selLine(text, innerW, focused)
+	}
+	return pad + padLine(lipgloss.NewStyle().Foreground(c).Bold(true).Render(text), innerW)
 }
 
 // renderFileLine renders one changed-file row; index 0 is the "Overall" entry.

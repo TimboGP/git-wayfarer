@@ -3,6 +3,7 @@ package git
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -66,6 +67,58 @@ func TestRenameDetectionIntegration(t *testing.T) {
 	}
 	if !strings.Contains(stat, "renamed.txt") {
 		t.Errorf("stat missing renamed.txt:\n%s", stat)
+	}
+}
+
+func TestWorkingAndStagedFiles(t *testing.T) {
+	dir := newTestRepo(t)
+	write := func(n, c string) {
+		if err := os.WriteFile(filepath.Join(dir, n), []byte(c), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("a.txt", "modified but unstaged\n") // tracked, unstaged
+	write("new.txt", "brand new file\n")      // untracked
+	write("b.txt", "modified and staged\n")
+	gitRun(t, dir, "add", "b.txt") // staged
+
+	r, err := Open(dir, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	working, err := r.WorkingFiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wm := statusMap(working)
+	if wm["a.txt"] != "M" {
+		t.Errorf("working a.txt = %q, want M", wm["a.txt"])
+	}
+	if wm["new.txt"] != "?" {
+		t.Errorf("working new.txt = %q, want ? (untracked)", wm["new.txt"])
+	}
+
+	staged, err := r.StagedFiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sm := statusMap(staged); sm["b.txt"] != "M" {
+		t.Errorf("staged b.txt = %q, want M", sm["b.txt"])
+	}
+
+	if d, _ := r.RenderStaged("", 80); !strings.Contains(d, "b.txt") {
+		t.Errorf("staged diff missing b.txt:\n%s", d)
+	}
+	if d, _ := r.RenderWorking("", 80); !strings.Contains(d, "a.txt") {
+		t.Errorf("working diff missing a.txt:\n%s", d)
+	}
+	d, err := r.RenderUntracked("new.txt", 80)
+	if err != nil {
+		t.Fatalf("RenderUntracked error: %v", err)
+	}
+	if !strings.Contains(d, "brand new file") {
+		t.Errorf("untracked diff missing file contents:\n%s", d)
 	}
 }
 

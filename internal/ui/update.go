@@ -58,7 +58,11 @@ func (m Model) onCommitsLoaded(msg commitsLoadedMsg) (tea.Model, tea.Cmd) {
 	m.markA, m.markB = "", ""
 	m.searching = false
 	m.searchQuery = ""
-	m.applyFilter() // sets visible, count, cursor, and rebinds the renderer
+	m.refreshStatus() // synthetic working/staged rows
+	m.applyFilter()   // sets visible, count, cursor, and rebinds the renderer
+	// Default-select HEAD (the first real commit), not a status row.
+	m.commitList.cursor = m.statusCount()
+	m.commitList.clamp()
 	return m, m.onSelectionChanged()
 }
 

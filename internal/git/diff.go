@@ -93,6 +93,37 @@ func parseNameStatus(out string) []FileChange {
 	return files
 }
 
+// StagedFiles lists files staged in the index (index vs HEAD).
+func (r *Repo) StagedFiles() ([]FileChange, error) {
+	out, err := r.runGit("diff", "--cached", "--name-status", "--find-renames")
+	if err != nil {
+		return nil, err
+	}
+	return parseNameStatus(out), nil
+}
+
+// WorkingFiles lists unstaged changes (working tree vs index), including
+// untracked files (marked with status "?").
+func (r *Repo) WorkingFiles() ([]FileChange, error) {
+	out, err := r.runGit("diff", "--name-status", "--find-renames")
+	if err != nil {
+		return nil, err
+	}
+	files := parseNameStatus(out)
+
+	untracked, err := r.runGit("ls-files", "--others", "--exclude-standard")
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range strings.Split(strings.TrimRight(untracked, "\n"), "\n") {
+		if p == "" {
+			continue
+		}
+		files = append(files, FileChange{Status: "?", Path: p})
+	}
+	return files, nil
+}
+
 // CommitStat returns the `git diff --stat` summary for a commit relative to its
 // first parent, used in the commit detail view.
 func (r *Repo) CommitStat(hash string) (string, error) {

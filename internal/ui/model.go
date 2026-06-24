@@ -33,6 +33,19 @@ const (
 	ovDetail
 )
 
+type statusKind int
+
+const (
+	stWorking statusKind = iota // unstaged changes (working tree vs index)
+	stStaged                    // staged changes (index vs HEAD)
+)
+
+// statusRow is a synthetic top-of-list entry for uncommitted changes.
+type statusRow struct {
+	kind  statusKind
+	count int
+}
+
 // Model is the root Bubble Tea model.
 type Model struct {
 	repo     *git.Repo
@@ -53,6 +66,7 @@ type Model struct {
 	visible    []git.Commit // commits passing the active search filter
 	graph      []string     // colored graph prefix per commit (indexed like commits)
 	showGraph  bool         // render the commit-graph topology column
+	statusRows []statusRow  // synthetic working/staged entries at the top of the list
 	commitList scrollList
 
 	// search/filter over commits
@@ -121,12 +135,57 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) compareMode() bool { return m.markA != "" && m.markB != "" }
 
-func (m Model) currentCommit() *git.Commit {
+// statusCount is the number of synthetic working/staged rows currently shown.
+// They are hidden while a search filter is active.
+func (m Model) statusCount() int {
+	if m.searchQuery != "" {
+		return 0
+	}
+	return len(m.statusRows)
+}
+
+// selectedStatus returns the synthetic status row under the cursor, if any.
+func (m Model) selectedStatus() (statusRow, bool) {
 	i := m.commitList.cursor
+	if i >= 0 && i < m.statusCount() {
+		return m.statusRows[i], true
+	}
+	return statusRow{}, false
+}
+
+func (m Model) currentCommit() *git.Commit {
+	i := m.commitList.cursor - m.statusCount()
 	if i >= 0 && i < len(m.visible) {
 		return &m.visible[i]
 	}
 	return nil
+}
+
+// selectedFile returns the changed-file path under the file cursor, or "" for
+// the Overall entry (index 0).
+func (m Model) selectedFile() string {
+	if m.fileList.cursor > 0 && m.fileList.cursor-1 < len(m.files) {
+		return m.files[m.fileList.cursor-1].Path
+	}
+	return ""
+}
+
+func (m Model) selectedFileChange() *git.FileChange {
+	if m.fileList.cursor > 0 && m.fileList.cursor-1 < len(m.files) {
+		return &m.files[m.fileList.cursor-1]
+	}
+	return nil
+}
+
+// refreshStatus recomputes the synthetic working/staged rows from the repo.
+func (m *Model) refreshStatus() {
+	m.statusRows = nil
+	if working, err := m.repo.WorkingFiles(); err == nil && len(working) > 0 {
+		m.statusRows = append(m.statusRows, statusRow{kind: stWorking, count: len(working)})
+	}
+	if staged, err := m.repo.StagedFiles(); err == nil && len(staged) > 0 {
+		m.statusRows = append(m.statusRows, statusRow{kind: stStaged, count: len(staged)})
+	}
 }
 
 // applyFilter recomputes the visible commit slice from the active search query
@@ -147,17 +206,15 @@ func (m *Model) applyFilter() {
 		}
 		m.visible = out
 	}
-	m.commitList.setCount(len(m.visible))
+	m.commitList.setCount(m.statusCount() + len(m.visible))
 	m.commitList.cursor = 0
 	m.commitList.offset = 0
 	m.bindCommitRender()
 }
 
-// diffParams computes the diff endpoints for the current selection.
+// diffParams computes the diff endpoints for the current commit selection.
 func (m Model) diffParams() (base, target, file string, ok bool) {
-	if m.fileList.cursor > 0 && m.fileList.cursor-1 < len(m.files) {
-		file = m.files[m.fileList.cursor-1].Path
-	}
+	file = m.selectedFile()
 	if m.compareMode() {
 		return m.markA, m.markB, file, true
 	}
@@ -178,15 +235,25 @@ func (m *Model) setStatus(s string) { m.status = s; m.statusErr = false }
 func (m *Model) bindCommitRender() {
 	commits, markA, markB := m.visible, m.markA, m.markB
 	graphs := m.graph
+	status := m.statusRows
+	statusCount := m.statusCount()
 	// The graph is computed over the full history; only show it when unfiltered
 	// (then visible == commits and indices align).
 	showGraph := m.showGraph && m.searchQuery == ""
+	graphPad := ""
+	if showGraph && len(graphs) > 0 {
+		graphPad = strings.Repeat(" ", lipgloss.Width(graphs[0]))
+	}
 	m.commitList.render = func(i int, selected, focused bool, width int) string {
-		g := ""
-		if showGraph && i < len(graphs) {
-			g = graphs[i]
+		if i < statusCount {
+			return renderStatusLine(status[i], graphPad, selected, focused, width)
 		}
-		return renderCommitLine(commits[i], g, markA, markB, selected, focused, width)
+		ci := i - statusCount
+		g := ""
+		if showGraph && ci < len(graphs) {
+			g = graphs[ci]
+		}
+		return renderCommitLine(commits[ci], g, markA, markB, selected, focused, width)
 	}
 }
 
@@ -220,7 +287,13 @@ func (m *Model) refreshFiles() {
 		files []git.FileChange
 		err   error
 	)
-	if m.compareMode() {
+	if st, ok := m.selectedStatus(); ok {
+		if st.kind == stStaged {
+			files, err = m.repo.StagedFiles()
+		} else {
+			files, err = m.repo.WorkingFiles()
+		}
+	} else if m.compareMode() {
 		files, err = m.repo.ChangedFilesRange(m.markA, m.markB)
 	} else if c := m.currentCommit(); c != nil {
 		files, err = m.repo.ChangedFiles(c.Hash)
@@ -246,6 +319,15 @@ func (m *Model) onSelectionChanged() tea.Cmd {
 
 // reloadDiff queues an async render of the current diff selection.
 func (m *Model) reloadDiff() tea.Cmd {
+	if st, ok := m.selectedStatus(); ok {
+		m.diffToken++
+		m.loadingDiff = true
+		untracked := false
+		if fc := m.selectedFileChange(); fc != nil && fc.Status == "?" {
+			untracked = true
+		}
+		return loadStatusDiffCmd(m.repo, st.kind, m.selectedFile(), untracked, m.diffWidth, m.diffToken)
+	}
 	base, target, file, ok := m.diffParams()
 	if !ok {
 		m.vp.SetContent(mutedStyle.Render("no commit selected"))
@@ -396,22 +478,32 @@ func (m Model) mainView() string {
 		m.commitList.view(), m.leftW, m.contentH, m.focus == focusCommits)
 
 	fileTitle := "Changes"
-	if m.compareMode() {
-		fileTitle = "Changes A..B"
-	}
-	fileBox := paneBox(fmt.Sprintf("%s (%d)", fileTitle, len(m.files)),
-		m.fileList.view(), m.rightW, m.fileH, m.focus == focusFiles)
-
 	diffTitle := "Diff"
-	if base, target, file, ok := m.diffParams(); ok {
+	if st, ok := m.selectedStatus(); ok {
+		name := "Working tree"
+		if st.kind == stStaged {
+			name = "Staged"
+		}
+		fileTitle = name
+		diffTitle = "Diff · " + name
+		if f := m.selectedFile(); f != "" {
+			diffTitle = "Diff · " + truncate(filepath.Base(f), 40)
+		}
+	} else if m.compareMode() {
+		fileTitle = "Changes A..B"
+		if base, target, _, ok := m.diffParams(); ok {
+			diffTitle = fmt.Sprintf("Diff · %s..%s", short(base), short(target))
+		}
+	} else if _, target, file, ok := m.diffParams(); ok {
 		if file != "" {
 			diffTitle = "Diff · " + truncate(filepath.Base(file), 40)
-		} else if m.compareMode() {
-			diffTitle = fmt.Sprintf("Diff · %s..%s", short(base), short(target))
 		} else {
 			diffTitle = "Diff · " + short(target)
 		}
 	}
+	fileBox := paneBox(fmt.Sprintf("%s (%d)", fileTitle, len(m.files)),
+		m.fileList.view(), m.rightW, m.fileH, m.focus == focusFiles)
+
 	if m.loadingDiff {
 		diffTitle += mutedStyle.Render(" (loading…)")
 	}

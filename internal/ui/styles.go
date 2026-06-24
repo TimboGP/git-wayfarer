@@ -90,8 +90,10 @@ func statusBadge(status string) string {
 		c = colAdd
 	case "D":
 		c = colDel
-	case "R":
+	case "R", "C":
 		c = colRen
+	case "?":
+		c = colMuted
 	default:
 		c = colMod
 	}

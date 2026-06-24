@@ -43,6 +43,25 @@ func loadDiffCmd(repo *git.Repo, base, target, file string, width, token int) te
 	}
 }
 
+// loadStatusDiffCmd renders the working-tree or staged diff (file optional).
+func loadStatusDiffCmd(repo *git.Repo, kind statusKind, file string, untracked bool, width, token int) tea.Cmd {
+	return func() tea.Msg {
+		var (
+			content string
+			err     error
+		)
+		switch {
+		case kind == stStaged:
+			content, err = repo.RenderStaged(file, width)
+		case untracked:
+			content, err = repo.RenderUntracked(file, width)
+		default:
+			content, err = repo.RenderWorking(file, width)
+		}
+		return diffLoadedMsg{token: token, content: content, err: err}
+	}
+}
+
 // checkoutCmd performs a mutating branch checkout.
 func checkoutCmd(repo *git.Repo, branch string) tea.Cmd {
 	return func() tea.Msg {
