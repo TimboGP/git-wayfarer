@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/osleff/wayfarer/internal/git"
+	"github.com/TimboGP/git-wayfarer/internal/git"
 )
 
 var graphAnsi = regexp.MustCompile("\x1b\\[[0-9;]*m")

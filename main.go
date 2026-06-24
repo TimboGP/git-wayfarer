@@ -9,8 +9,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/osleff/wayfarer/internal/git"
-	"github.com/osleff/wayfarer/internal/ui"
+	"github.com/TimboGP/git-wayfarer/internal/git"
+	"github.com/TimboGP/git-wayfarer/internal/ui"
 )
 
 // Build-time metadata, injected by GoReleaser via -ldflags (see .goreleaser.yaml).

@@ -44,11 +44,11 @@ changelog:
 
 brews:
   - repository:
-      owner: osleff
+      owner: TimboGP
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     directory: Formula
-    homepage: "https://github.com/osleff/wayfarer"
+    homepage: "https://github.com/TimboGP/git-wayfarer"
     description: "Interactive terminal UI for walking git history, switching branches/worktrees, and inspecting diffs"
     license: "MIT"
     # delta is optional but recommended for nicer diffs.

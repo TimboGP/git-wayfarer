@@ -6,7 +6,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/osleff/wayfarer/internal/git"
+	"github.com/TimboGP/git-wayfarer/internal/git"
 )
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {

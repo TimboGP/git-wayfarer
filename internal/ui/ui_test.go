@@ -9,7 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/osleff/wayfarer/internal/git"
+	"github.com/TimboGP/git-wayfarer/internal/git"
 )
 
 func newTestRepo(t *testing.T) string {

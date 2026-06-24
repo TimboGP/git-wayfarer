@@ -6,7 +6,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 
-	"github.com/osleff/wayfarer/internal/git"
+	"github.com/TimboGP/git-wayfarer/internal/git"
 )
 
 // laneColors cycles per graph lane so parallel branches are distinguishable.

@@ -50,7 +50,7 @@ keyboard.
 **Homebrew:**
 
 ```sh
-brew install osleff/tap/wayfarer
+brew install timbogp/tap/wayfarer
 ```
 
 **Build from source** (produces a `wayfarer` binary):
@@ -59,10 +59,11 @@ brew install osleff/tap/wayfarer
 go build -o wayfarer .
 ```
 
-**`go install`:**
+**`go install`** (installs a `git-wayfarer` binary — the repo name; rename or
+alias it to `wayfarer` if you like):
 
 ```sh
-go install github.com/osleff/wayfarer@latest
+go install github.com/TimboGP/git-wayfarer@latest
 ```
 
 Requires Go 1.26+ and a `git` binary on `PATH`. `delta` is optional but
@@ -130,7 +131,7 @@ updates the Homebrew formula.
 
 One-time setup:
 
-1. Create a public tap repo `github.com/osleff/homebrew-tap`.
+1. Create a public tap repo `github.com/TimboGP/homebrew-tap`.
 2. Add a repo secret `HOMEBREW_TAP_GITHUB_TOKEN` — a PAT with `contents:write`
    on the tap repo (the default `GITHUB_TOKEN` can't push to another repo).
 

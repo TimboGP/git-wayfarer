@@ -1,4 +1,4 @@
-module github.com/osleff/wayfarer
+module github.com/TimboGP/git-wayfarer
 
 go 1.26.1
 
