@@ -1,4 +1,4 @@
-// Command githist is an interactive terminal UI for walking git history,
+// Command wayfarer is an interactive terminal UI for walking git history,
 // switching branches/worktrees, and inspecting diffs between changesets.
 package main
 
@@ -9,8 +9,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/osleff/git-history-tool/internal/git"
-	"github.com/osleff/git-history-tool/internal/ui"
+	"github.com/osleff/wayfarer/internal/git"
+	"github.com/osleff/wayfarer/internal/ui"
 )
 
 const version = "0.1.0"
@@ -21,14 +21,14 @@ func main() {
 		noDelta bool
 		showVer bool
 	)
-	flag.StringVar(&dir, "C", "", "run as if githist was started in `dir`")
+	flag.StringVar(&dir, "C", "", "run as if wayfarer was started in `dir`")
 	flag.BoolVar(&noDelta, "no-delta", false, "disable delta rendering (use git's colored diff)")
 	flag.BoolVar(&showVer, "version", false, "print version and exit")
 	flag.Usage = usage
 	flag.Parse()
 
 	if showVer {
-		fmt.Println("githist", version)
+		fmt.Println("wayfarer", version)
 		return
 	}
 
@@ -55,10 +55,10 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `githist %s — interactive git history TUI
+	fmt.Fprintf(os.Stderr, `wayfarer %s — interactive git history TUI
 
 Usage:
-  githist [flags] [revision]
+  wayfarer [flags] [revision]
 
 Arguments:
   revision    optional revision to start browsing from (default: HEAD)
@@ -75,6 +75,6 @@ Keys (press ? inside the app for the full list):
 }
 
 func fatal(err error) {
-	fmt.Fprintln(os.Stderr, "githist:", err)
+	fmt.Fprintln(os.Stderr, "wayfarer:", err)
 	os.Exit(1)
 }

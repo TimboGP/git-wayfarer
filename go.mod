@@ -1,4 +1,4 @@
-module github.com/osleff/git-history-tool
+module github.com/osleff/wayfarer
 
 go 1.26.1
 

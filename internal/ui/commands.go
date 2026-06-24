@@ -3,7 +3,7 @@ package ui
 import (
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/osleff/git-history-tool/internal/git"
+	"github.com/osleff/wayfarer/internal/git"
 )
 
 // Message types flowing through the Bubble Tea update loop.

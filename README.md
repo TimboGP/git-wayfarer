@@ -1,11 +1,11 @@
-# githist
+# wayfarer
 
 An interactive terminal UI for walking git history, switching branches and
 worktrees, and inspecting diffs between changesets — all without leaving the
 keyboard.
 
 ```
- githist   repo myproject  HEAD main  delta
+ wayfarer   repo myproject  HEAD main  delta
 ╭───────────────────────────────╮╭──────────────────────────────────────────╮
 │Commits (248)                  ││Changes (3)                                 │
 │  a1b2c3d (HEAD, main) Fix … 2h ││▸ Overall (all files)                       │
@@ -41,31 +41,29 @@ keyboard.
 
 ## Install
 
-Build from source (produces a `githist` binary):
+Build from source (produces a `wayfarer` binary):
 
 ```sh
-go build -o githist .
+go build -o wayfarer .
 ```
 
-Or install with `go install` (note: this installs a binary named
-`git-history-tool`, matching the module path — rename or alias it to `githist`
-if you like):
+Or install with `go install`:
 
 ```sh
-go install github.com/osleff/git-history-tool@latest
+go install github.com/osleff/wayfarer@latest
 ```
 
 Requires Go 1.26+ and a `git` binary on `PATH`. `delta` is optional but
-recommended.
+recommended. Tip: alias it to something short, e.g. `alias way=wayfarer`.
 
 ## Usage
 
 ```sh
-githist                 # browse the repo in the current directory, from HEAD
-githist v1.2.0          # start browsing from a specific revision
-githist -C ~/code/repo  # browse a repo elsewhere
-githist --no-delta      # force git's colored diff instead of delta
-githist --version
+wayfarer                 # browse the repo in the current directory, from HEAD
+wayfarer v1.2.0          # start browsing from a specific revision
+wayfarer -C ~/code/repo  # browse a repo elsewhere
+wayfarer --no-delta      # force git's colored diff instead of delta
+wayfarer --version
 ```
 
 ### Keys
@@ -86,7 +84,7 @@ githist --version
 
 ## How it works
 
-`githist` uses a hybrid git backend:
+`wayfarer` uses a hybrid git backend:
 
 - **[go-git](https://github.com/go-git/go-git)** drives the structured reads —
   walking the commit graph, listing branches, and computing changed-file lists

@@ -10,7 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/osleff/git-history-tool/internal/git"
+	"github.com/osleff/wayfarer/internal/git"
 )
 
 type focusArea int
@@ -341,7 +341,7 @@ func (m Model) View() tea.View {
 
 func (m Model) headerView() string {
 	seg := []string{
-		headerStyle.Background(colBorderHi).Render(" githist "),
+		headerStyle.Background(colBorderHi).Render(" wayfarer "),
 		mutedStyle.Render("repo ") + filepath.Base(m.repo.Root()),
 		mutedStyle.Render("HEAD ") + lipgloss.NewStyle().Foreground(colRefHead).Render(m.repo.CurrentRef()),
 	}

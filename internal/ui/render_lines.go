@@ -5,7 +5,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 
-	"github.com/osleff/git-history-tool/internal/git"
+	"github.com/osleff/wayfarer/internal/git"
 )
 
 // Selection styling rule: a selected row is rendered as plain text wrapped in a

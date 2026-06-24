@@ -1,4 +1,4 @@
-// Package git provides the data layer for githist. It uses go-git for
+// Package git provides the data layer for wayfarer. It uses go-git for
 // structured reads (commit graph, branches, tree diffs) and shells out to the
 // system git binary for mutations, worktree enumeration, the dirty-tree guard,
 // and producing the rendered diff text fed to delta.
