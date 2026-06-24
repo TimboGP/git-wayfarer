@@ -53,6 +53,7 @@ func (m Model) onCommitsLoaded(msg commitsLoadedMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.commits = msg.commits
+	m.graph = computeGraph(m.commits)
 	m.rev = msg.rev
 	m.markA, m.markB = "", ""
 	m.searching = false
@@ -117,6 +118,15 @@ func (m Model) mainKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, loadCommitsCmd(m.repo, m.rev)
 	case key.Matches(msg, m.keys.Mark):
 		return m.toggleMark()
+	case key.Matches(msg, m.keys.Graph):
+		m.showGraph = !m.showGraph
+		m.bindCommitRender()
+		if m.showGraph {
+			m.setStatus("graph on")
+		} else {
+			m.setStatus("graph off")
+		}
+		return m, nil
 	case key.Matches(msg, m.keys.Search):
 		m.searching = true
 		m.setStatus("")

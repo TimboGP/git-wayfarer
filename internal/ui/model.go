@@ -51,6 +51,8 @@ type Model struct {
 	rev        string       // current view revision ("" = HEAD)
 	commits    []git.Commit // all loaded commits
 	visible    []git.Commit // commits passing the active search filter
+	graph      []string     // colored graph prefix per commit (indexed like commits)
+	showGraph  bool         // render the commit-graph topology column
 	commitList scrollList
 
 	// search/filter over commits
@@ -107,6 +109,7 @@ func New(repo *git.Repo, useDelta bool, rev string) Model {
 		keys:       defaultKeys(),
 		commitList: scrollList{focused: true},
 		focus:      focusCommits,
+		showGraph:  true,
 	}
 }
 
@@ -174,8 +177,16 @@ func (m *Model) setStatus(s string) { m.status = s; m.statusErr = false }
 // bind* (re)attach render closures that capture current data/marks.
 func (m *Model) bindCommitRender() {
 	commits, markA, markB := m.visible, m.markA, m.markB
+	graphs := m.graph
+	// The graph is computed over the full history; only show it when unfiltered
+	// (then visible == commits and indices align).
+	showGraph := m.showGraph && m.searchQuery == ""
 	m.commitList.render = func(i int, selected, focused bool, width int) string {
-		return renderCommitLine(commits[i], markA, markB, selected, focused, width)
+		g := ""
+		if showGraph && i < len(graphs) {
+			g = graphs[i]
+		}
+		return renderCommitLine(commits[i], g, markA, markB, selected, focused, width)
 	}
 }
 

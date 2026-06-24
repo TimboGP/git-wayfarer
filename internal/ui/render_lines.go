@@ -12,9 +12,17 @@ import (
 // single uniform highlight (so a background color isn't broken by inner ANSI
 // resets); an unselected row keeps its per-token colors.
 
-// renderCommitLine renders one commit row: mark, short hash, refs, subject,
-// and a right-aligned relative age. The subject is prioritized for space.
-func renderCommitLine(c git.Commit, markA, markB string, selected, focused bool, width int) string {
+// renderCommitLine renders one commit row: an optional graph prefix, then mark,
+// short hash, refs, subject, and a right-aligned relative age. The subject is
+// prioritized for space. The graph prefix (already colored) stays outside any
+// selection highlight.
+func renderCommitLine(c git.Commit, graph, markA, markB string, selected, focused bool, width int) string {
+	graphW := lipgloss.Width(graph)
+	width -= graphW
+	if width < 1 {
+		width = 1
+	}
+
 	markCh := " "
 	switch c.Hash {
 	case markA:
@@ -58,7 +66,7 @@ func renderCommitLine(c git.Commit, markA, markB string, selected, focused bool,
 			body = refsPlain + " " + subj
 		}
 		line := prefix + body + strings.Repeat(" ", pad) + age
-		return selLine(line, width, focused)
+		return graph + selLine(line, width, focused)
 	}
 
 	// Colored variant.
@@ -73,7 +81,7 @@ func renderCommitLine(c git.Commit, markA, markB string, selected, focused bool,
 	if showRefs {
 		body = refBadges(c.Refs) + " " + subj
 	}
-	return mark + " " + hashStyle.Render(c.Short) + " " + body +
+	return graph + mark + " " + hashStyle.Render(c.Short) + " " + body +
 		strings.Repeat(" ", pad) + mutedStyle.Render(age)
 }
 

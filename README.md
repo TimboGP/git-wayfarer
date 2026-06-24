@@ -23,6 +23,8 @@ keyboard.
 
 - **Walk history** commit by commit with `git log`-style decoration (HEAD,
   branches, tags) on each entry.
+- **Branch-graph topology** — a colored ASCII graph column showing lanes and
+  merge nodes (`◆`) next to the log; toggle with `t`.
 - **Inspect changes** for the selected commit (vs. its first parent), per file
   or as one overall diff — with rename detection (`R old → new`).
 - **Commit detail view** — press `enter` for the full message, author/date,
@@ -75,6 +77,7 @@ wayfarer --version
 | `tab` | cycle focus: commits → changes → diff |
 | `enter` | show full commit details (message, diffstat) |
 | `/` | search / filter commits by subject, author, or hash |
+| `t` | toggle the branch-graph topology column |
 | `v` | mark commit `A`, then `B`, to compare a range (`esc` clears) |
 | `b` | open the branches overlay (`enter` inspect · `c` checkout) |
 | `w` | open the worktrees overlay (`enter` open · `a` add · `d` remove) |

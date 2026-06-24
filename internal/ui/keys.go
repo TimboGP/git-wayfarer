@@ -15,6 +15,7 @@ type keyMap struct {
 	Enter  key.Binding
 	Mark   key.Binding
 	Search key.Binding
+	Graph  key.Binding
 
 	Branches  key.Binding
 	Worktrees key.Binding
@@ -41,6 +42,7 @@ func defaultKeys() keyMap {
 		Enter:  key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "details")),
 		Mark:   key.NewBinding(key.WithKeys("v"), key.WithHelp("v", "mark A/B")),
 		Search: key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search")),
+		Graph:  key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "graph")),
 
 		Branches:  key.NewBinding(key.WithKeys("b"), key.WithHelp("b", "branches")),
 		Worktrees: key.NewBinding(key.WithKeys("w"), key.WithHelp("w", "worktrees")),
@@ -64,7 +66,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.Top, k.Bottom},
-		{k.Tab, k.Enter, k.Mark, k.Search, k.Refresh},
+		{k.Tab, k.Enter, k.Mark, k.Search, k.Graph, k.Refresh},
 		{k.Branches, k.Worktrees, k.Checkout, k.Add, k.Delete},
 		{k.Help, k.Esc, k.Quit},
 	}
