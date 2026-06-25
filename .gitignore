@@ -1,6 +1,9 @@
 # Built binary
 /wayfarer
 
+# GoReleaser output
+/dist/
+
 # Go
 *.test
 *.out
