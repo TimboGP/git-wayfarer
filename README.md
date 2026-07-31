@@ -1,5 +1,12 @@
 # wayfarer
 
+> **Archived.** Development continues at
+> [git-wayfarer-core](https://github.com/TimboGP/git-wayfarer-core), which
+> hosts a from-scratch Rust/ratatui rewrite of this app (targeting feature
+> parity with what's documented below) alongside a sibling conflict-resolution
+> tool, sharing a common git-plumbing/domain/widget foundation. This repo is
+> kept as-is for reference during that rewrite.
+
 An interactive terminal UI for walking git history, switching branches and
 worktrees, and inspecting diffs between changesets — all without leaving the
 keyboard.
